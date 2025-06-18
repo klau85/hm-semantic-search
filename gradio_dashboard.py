@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_milvus import Milvus
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 import gradio as gr
 import torch
 import os
@@ -32,7 +32,7 @@ async def recommend_articles(query):
     recs = db_articles.similarity_search_with_score(query, k=24)
 
     rec_data = {
-        "article_id": [rec[0].page_content.strip('"').split()[0] for rec in recs],
+        "article_id": [rec[0].metadata['article_id'] for rec in recs],
         "score": [rec[1] for rec in recs]
     }
     recs_df = pd.DataFrame(rec_data)
