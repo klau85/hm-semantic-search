@@ -1,9 +1,8 @@
 import pandas as pd
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_milvus import Milvus
-from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores import Qdrant
+from qdrant_client import QdrantClient
 import gradio as gr
 import torch
 import os
@@ -13,22 +12,20 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 articles = pd.read_csv('data/articles_full_desc.csv', dtype={'article_id': str})
 
-async def recommend_articles(query):
-    # embeddings = HuggingFaceEmbeddings(
-    #     model_name=os.getenv('HUGGING_FACE_EMBEDDING'),
-    #     model_kwargs={'device': device}
-    # )
-    embeddings = OpenAIEmbeddings()
-    db_articles = Milvus(
-        embedding_function=embeddings,
-        collection_name=os.getenv('MILVIUS_COLLECTION'),
-        connection_args={
-            "uri": os.getenv('ZILLIZ_CLOUD_URI'),
-            "token": os.getenv('ZILLIZ_CLOUD_API_KEY'),
-            "secure": True,
-        }
-    )
+# Initialize DB
+db_articles = Qdrant(
+    client=QdrantClient(
+        url=os.getenv('DB_URL') ,
+    ),
+    embeddings=HuggingFaceEmbeddings(
+        model_name=os.getenv('HF_EMBEDDING_MODEL'),
+        model_kwargs={'device': device}
+    ),
+    collection_name=os.getenv('COLLECTION'),
+)
 
+# Recommend similar articles based on query
+async def recommend_articles(query):
     recs = db_articles.similarity_search_with_score(query, k=24)
 
     rec_data = {
@@ -52,6 +49,7 @@ async def recommend_articles(query):
 
     return results
 
+# Create Gradio Dashboard
 with gr.Blocks(theme=gr.themes.Glass()) as dashboard:
     gr.Markdown('# H&M articles recommender')
 
